@@ -54,7 +54,7 @@
 ```
 :~/prj/linux-6.19.x$ su -l  # or sudo -i
 :~# cd /home/user/prj/
-:/home/user/prj: dpkg -i *6.19.5*.deb
+:/home/user/prj$ dpkg -i *6.19.5*.deb
 ```
 
 #### Sign new kernel
