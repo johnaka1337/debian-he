@@ -3,11 +3,6 @@
 # Fail fast on pipeline errors
 set -e
 
-# Enforce root privileges execution at the entry point
-if [ "$EUID" -ne 0 ]; then
-  echo "Root privileges required! Re-run with the 'sudo' command or as root."
-  exit 1
-fi
 
 KERNEL_TYPE="stock"
 MOK_NAME="Machine Owner Key ${SUDO_USER:-$USER}"
@@ -35,6 +30,12 @@ while [[ "$#" -gt 0 ]]; do
             ;;
     esac
 done
+
+# Enforce root privileges execution at the entry point
+if [ "$EUID" -ne 0 ]; then
+  echo "Root privileges required! Re-run with the 'sudo' command or as root."
+  exit 1
+fi
 
 # Validate kernel type argument
 if [[ "$KERNEL_TYPE" != "stock" && "$KERNEL_TYPE" != "vanilla" ]]; then

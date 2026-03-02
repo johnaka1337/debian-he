@@ -23,10 +23,20 @@
 
 ### Installation / Deployment
 ```bash
-git clone [https://github.com/johnaka1337/debian-he.git](https://github.com/johnaka1337/debian-he.git)
+git clone https://github.com/johnaka1337/debian-he.git
 cd debian-he
-bash install.sh --kernel-type=vanilla # the default is stock
+bash install.sh
 ```
+
+#### Examples
+##### vanilla kernel
+```bash
+bash install.sh --kernel-type=vanilla
+```
+
+##### vanilla kernel + MOK generation
+```bash
+bash install.sh --kernel-type=vanilla --mok-name "My Name" --mok-email="MyEmail@MyHost.MyDomain"
 
 ### TODO
 * Develop an automated deployment script for system-level configurations (sysctl, firewall, etc.).
@@ -35,4 +45,4 @@ bash install.sh --kernel-type=vanilla # the default is stock
 ### Contributing
 Contributions, suggestions, and advice are always welcome! Feel free to open an issue or submit a pull request.
 
- EOF
+EOF
