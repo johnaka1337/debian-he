@@ -1,23 +1,38 @@
 # Debian-HE
 
 ### Overview
-> This repository provides a streamlined set of **Debian kernel and system configurations** specifically tailored for **modern desktop and home systems (2020+)**.
-> The core philosophy of this project is built upon two pillars: **minimalism** and **security**. We aim to deliver a clean, efficient, and hardened base system that is fast, stable, and ready for daily use without unnecessary bloat.
+> The core philosophy of this project is built upon two pillars: **minimalism** and **security**. The aim is to deliver a clean, efficient, and hardened base system that is fast, stable, and ready for daily use without unnecessary bloat.
+>
+> This repository contains configuration files and scripts to harden system security, improve performance, and build a custom, debloated Linux kernel. The kernel configuration is strictly targeted at modern desktop and home hardware (2020+).
+>
 
-## Core Architecture
-This configuration is designed around the capabilities of modern Linux kernels (6.19+). It eliminates legacy tuning parameters in favor of native kernel intelligence, specifically relying on the EEVDF scheduler for process management and lock-less networking queues for maximum throughput.
+### Highlights and Goals
+* **Stripped Kernel Configuration:**
+  * Removed legacy, deprecated, and exotic/server hardware support.
+  * Disabled LDT (`MODIFY_LDT_SYSCALL`).
+  * Enabled NT Sync driver (great for Wine/Proton gaming).
+  * And more...
+* **Attack Surface Reduction:**
+  * Disabled tracers, debugging information, and `debugfs`.
+  * Enabled explicit CPU register and memory zeroing (`ZERO_CALL_USED_REGS`).
+  * Enforced kernel lockdown (`LOCK_DOWN_KERNEL_FORCE_CONFIDENTIALITY`).
+  * And more...
+* **System Hardening and Tuning:**
+  * Advanced network stack tuning (latency reduction, TCP optimization, checked via [Waveform Bufferbloat Test](https://www.waveform.com/tools/bufferbloat)).
+  * Baseline firewall configuration (drop incoming, allow outgoing + established).
 
-## Performance & Network Tuning
-The network stack is heavily optimized to eliminate bufferbloat and reduce latency under load:
-* **Congestion Control & AQM:** Utilizes Google's **BBR** combined with the **CAKE** queuing discipline. This setup guarantees stable RTT even on saturated Wi-Fi or Ethernet links.
-* **TCP Stack Optimization:** Tuned buffer sizes, enabled TCP Fast Open (TFO), and restricted `tcp_notsent_lowat` to minimize queuing delay in the local stack.
-* **MTU Probing:** Enabled to gracefully handle path MTU black holes without dropping connections.
+### Installation / Deployment
+```bash
+git clone [https://github.com/johnaka1337/debian-he.git](https://github.com/johnaka1337/debian-he.git)
+cd debian-he
+bash install.sh --kernel-type=vanilla # the default is stock
+```
 
-## Security Hardening
-The security model follows a defense-in-depth approach, restricting unprivileged access to kernel interfaces and securing the network layer:
-* **Namespace Restrictions:** Modern AppArmor-based policies control unprivileged user namespaces (`kernel.unprivileged_userns_apparmor_policy`). Legacy cloning is disabled to significantly reduce the attack surface while maintaining compatibility with SUID sandboxes like Firejail.
-* **Strict Routing:** Enforced strict Reverse Path Filtering (`rp_filter=1`) globally to drop spoofed packets. ICMP redirects and source routing are completely disabled.
-* **Kernel Lockdown:** Restricted `dmesg` access, hidden kernel pointers (`kptr_restrict`), and limited `ptrace` scope to prevent unauthorized process memory inspection.
-* **Stealth Firewall:** Designed to be paired with an `nftables` inbound "drop" policy to ensure the system remains invisible to unsolicited network probes.
+### TODO
+* Develop an automated deployment script for system-level configurations (sysctl, firewall, etc.).
 
-## Deployment
+
+### Contributing
+Contributions, suggestions, and advice are always welcome! Feel free to open an issue or submit a pull request.
+
+ EOF
