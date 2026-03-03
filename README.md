@@ -1,4 +1,4 @@
-# Debian-HE
+# Debian Hardened & Efficient
 
 ### Overview
 > The core philosophy of this project is built upon two pillars: **minimalism** and **security**. The aim is to deliver a clean, efficient, and hardened base system that is fast, stable, and ready for daily use without unnecessary bloat.
@@ -22,10 +22,21 @@
   * Baseline firewall configuration (drop incoming, allow outgoing + established).
 
 ### Installation / Deployment
+There are two steps:
+1. kernel installation
+2. applying H&E configuration
+
 ```bash
+# step 0: clone
 git clone https://github.com/johnaka1337/debian-he.git
 cd debian-he
+
+# step 1: install
 bash install.sh
+mokutil --import /var/lib/dkms/mok.pub # if you haven't enrolled MOK keys before
+
+# step 2: apply restrictions
+bash apply-he-configuration.sh
 ```
 
 #### Examples
@@ -37,10 +48,7 @@ bash install.sh --kernel-type=vanilla
 ##### vanilla kernel + MOK generation
 ```bash
 bash install.sh --kernel-type=vanilla --mok-name "My Name" --mok-email="MyEmail@MyHost.MyDomain"
-
-### TODO
-* Develop an automated deployment script for system-level configurations (sysctl, firewall, etc.).
-
+```
 
 ### Contributing
 Contributions, suggestions, and advice are always welcome! Feel free to open an issue or submit a pull request.

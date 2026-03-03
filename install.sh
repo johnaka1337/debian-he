@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Fail fast on pipeline errors
-set -e
+set -euo pipefail
 
 
 KERNEL_TYPE="stock"
