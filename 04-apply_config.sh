@@ -8,8 +8,8 @@ if [ ! -f "$KERNEL_CONFIG" ]; then
 fi
 
 echo "==> Copying $KERNEL_CONFIG to $KERNEL_SRC_DIR/.config..."
+cp "${KERNEL_CONFIG}" "${KERNEL_SRC_DIR}/.config"
 cd "$KERNEL_SRC_DIR"
-cp "$KERNEL_CONFIG" "./config"
 
 
 echo "==> Injecting compiler optimizations (-pipe -march=native -mtune=native) into Makefile..."
