@@ -4,9 +4,9 @@
 set -euo pipefail
 
 
-KERNEL_TYPE="stock"
-MOK_NAME="Machine Owner Key ${SUDO_USER:-$USER}"
-MOK_EMAIL="${SUDO_USER:-$USER}@$(hostnamectl --static)"
+export KERNEL_TYPE="stock"
+export MOK_NAME="Machine Owner Key ${SUDO_USER:-$USER}"
+export MOK_EMAIL="${SUDO_USER:-$USER}@$(hostnamectl --static)"
 
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -46,17 +46,8 @@ fi
 
 # Define and export global pipeline variables
 export REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+export KERNEL_CONFIG="${REPO_DIR}/${KERNEL_TYPE}.config"
 export WORK_DIR="/usr/local/src"
-export KERNEL_CONFIG="${REPO_DIR}/.config"
-#echo "REPO_DIR = ${REPO_DIR}"
-#echo "WORK_DIR = ${WORK_DIR}"
-#echo "KERNEL_CONFIG = ${KERNEL_CONFIG}"
-export KERNEL_TYPE
-export MOK_NAME
-export MOK_EMAIL
-#echo "Kernel type: ${KERNEL_TYPE}"
-#echo "MOK name:    ${MOK_NAME}"
-#echo "MOK e-mail:  ${MOK_EMAIL}"
 export KERNEL_SRC_DIR=""
 export KERNEL_VERSION=""
 

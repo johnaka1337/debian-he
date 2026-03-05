@@ -20,6 +20,7 @@ REQUIRED_PACKAGES=(
     rsync
     wget
     openssl
+    gcc-14-plugin-dev
 )
 
 # Dynamically inject linux-source into the dependency array if stock kernel is requested

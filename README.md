@@ -21,6 +21,7 @@
   * Advanced network stack tuning (latency reduction, TCP optimization, checked via [Waveform Bufferbloat Test](https://www.waveform.com/tools/bufferbloat)).
   * Baseline firewall configuration (drop incoming, allow outgoing + established).
 
+
 ### Installation / Deployment
 There are two steps:
 1. kernel installation

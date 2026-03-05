@@ -2,6 +2,7 @@
 
 echo "==> [Stage 4] Applying custom kernel configuration and compiler optimizations..."
 
+
 if [ ! -f "$KERNEL_CONFIG" ]; then
     echo "Custom .config not found at $KERNEL_CONFIG"
     exit 1
