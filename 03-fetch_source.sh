@@ -6,24 +6,29 @@ mkdir -p "${WORK_DIR}"
 cd "${WORK_DIR}"
 
 if [ "$KERNEL_TYPE" = "vanilla" ]; then
-    echo "==> Fetching latest stable kernel version from kernel.org via wget..."
+    echo "==> Fetching latest stable kernel info from releases.json..."
 
-    KERNEL_VERSION=$(wget -qO- https://www.kernel.org/ | grep -A1 'id="latest_link"' | tail -n1 | grep -oP '(?<=href=").*?(?=")' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' || true)
+    JSON_DATA=$(wget -qO- https://www.kernel.org/releases.json)
 
-    if [ -z "$KERNEL_VERSION" ]; then
-        echo "Failed to determine latest kernel version."
+    KERNEL_VERSION=$(echo "$JSON_DATA" | jq -r '.releases[] | select(.moniker=="stable") | .version')
+    DOWNLOAD_URL=$(echo "$JSON_DATA" | jq -r '.releases[] | select(.moniker=="stable") | .source')
+    PGP_URL=$(echo "$JSON_DATA" | jq -r '.releases[] | select(.moniker=="stable") | .pgp')
+
+    if [ -z "$KERNEL_VERSION" ] || [ "$KERNEL_VERSION" == "null" ]; then
+        echo "Error: Could not parse stable kernel version from JSON."
         exit 1
     fi
 
-    MAJOR_VERSION=$(echo "$KERNEL_VERSION" | cut -d. -f1)
-    DOWNLOAD_URL="https://cdn.kernel.org/pub/linux/kernel/v${MAJOR_VERSION}.x/linux-${KERNEL_VERSION}.tar.xz"
-
-    echo "==> Downloading linux-${KERNEL_VERSION}.tar.xz..."
+    echo "==> Latest stable is ${KERNEL_VERSION}"
+    echo "==> Downloading tarball..."
     wget -c "$DOWNLOAD_URL"
+
+    #TODO check signature
+    #echo "==> Downloading PGP signature..."
+    #wget -q "$PGP_URL"
 
     echo "==> Unpacking vanilla archive..."
     tar -xf "linux-${KERNEL_VERSION}.tar.xz"
-
     KERNEL_SRC_DIR="${WORK_DIR}/linux-${KERNEL_VERSION}"
 
 elif [ "$KERNEL_TYPE" = "stock" ]; then

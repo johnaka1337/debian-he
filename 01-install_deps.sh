@@ -21,6 +21,7 @@ REQUIRED_PACKAGES=(
     wget
     openssl
     gcc-14-plugin-dev
+    jq
 )
 
 # Dynamically inject linux-source into the dependency array if stock kernel is requested
