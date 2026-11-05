@@ -1,0 +1,166 @@
+--- a/arch/x86/kernel/tsc_sync.c
++++ b/arch/x86/kernel/tsc_sync.c
+@@ -239,6 +239,32 @@
+ 	return true;
+ }
+ 
++
++/*
++ * Fallback for CPUs without TSC_ADJUST (e.g. Zen 3 mobile with buggy AGESA):
++ * shift the TSC of the booting CPU by writing MSR_IA32_TSC directly.
++ * Opt-in via "tsc_fixwarp" on the kernel command line.
++ */
++static s64 fixwarp_bias;	/* learned wrmsr latency, carried over to next CPUs */
++static bool tsc_fixwarp __read_mostly;
++
++static int __init tsc_fixwarp_setup(char *str)
++{
++	tsc_fixwarp = true;
++	return 1;
++}
++__setup("tsc_fixwarp", tsc_fixwarp_setup);
++
++static void tsc_fixwarp_shift(s64 delta)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	wrmsrq(MSR_IA32_TSC, rdtsc_ordered() + delta);
++	local_irq_restore(flags);
++}
++
++
+ /*
+  * Entry/exit counters that make sure that both CPUs
+  * run the measurement code at once:
+@@ -354,6 +380,9 @@
+  */
+ static void check_tsc_sync_source(void *__cpu)
+ {
++	cycles_t src_warp;
++	s64 coarse;
++
+ 	unsigned int cpu = (unsigned long)__cpu;
+ 	int cpus = 2;
+ 
+@@ -362,10 +391,12 @@
+ 	 *  1 if the CPU does not provide the TSC_ADJUST MSR
+ 	 *  3 if the MSR is available, so the target can try to adjust
+ 	 */
+-	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+-		atomic_set(&test_runs, 1);
+-	else
++	if (boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+ 		atomic_set(&test_runs, 3);
++	else if (tsc_fixwarp)
++		atomic_set(&test_runs, 16);	/* direct TSC write is less exact */
++	else
++		atomic_set(&test_runs, 1);
+ retry:
+ 	/* Wait for the target to start. */
+ 	while (atomic_read(&start_count) != cpus - 1)
+@@ -376,12 +407,23 @@
+ 	 */
+ 	atomic_inc(&start_count);
+ 
+-	check_tsc_warp(loop_timeout(cpu));
++	src_warp = check_tsc_warp(loop_timeout(cpu));
+ 
+ 	while (atomic_read(&stop_count) != cpus-1)
+ 		cpu_relax();
+ 
+ 	/*
++	 * fixwarp: if only this (source) CPU saw a big warp, its TSC is
++	 * behind. Fix it here, the target does the fine tuning.
++	 */
++	coarse = 0;
++	if (tsc_fixwarp && !boot_cpu_has(X86_FEATURE_TSC_ADJUST) && src_warp &&
++		num_online_cpus() == 1 &&
++		max_warp > (cycles_t)tsc_khz * 10 &&
++		max_warp < (cycles_t)tsc_khz * 10000)
++		coarse = max_warp;
++
++	/*
+ 	 * If the test was successful set the number of runs to zero and
+ 	 * stop. If not, decrement the number of runs an check if we can
+ 	 * retry. In case of random warps no retry is attempted.
+@@ -417,6 +459,12 @@
+ 	/*
+ 	 * Let the target continue with the bootup:
+ 	 */
++	if (coarse && atomic_read(&test_runs) > 0) {
++		pr_warn("TSC fixwarp: CPU%d is behind by %lld cycles, shifting it forward\n",
++			smp_processor_id(), (s64)coarse);
++		tsc_fixwarp_shift(coarse);
++	}
++
+ 	atomic_inc(&stop_count);
+ 
+ 	/*
+@@ -435,6 +483,7 @@
+ 	unsigned int cpu = smp_processor_id();
+ 	cycles_t cur_max_warp, gbl_max_warp;
+ 	int cpus = 2;
++	int fix_iter = 0;
+ 
+ 	/* Also aborts if there is no TSC. */
+ 	if (unsynchronized_tsc())
+@@ -449,7 +498,8 @@
+ 	 * SoCs the TSC is frequency synchronized, but still the TSC ADJUST
+ 	 * register might have been wreckaged by the BIOS..
+ 	 */
+-	if (tsc_store_and_check_tsc_adjust(false) || tsc_clocksource_reliable)
++	if (tsc_store_and_check_tsc_adjust(false) ||
++		(tsc_clocksource_reliable && !tsc_fixwarp))
+ 		return;
+ 
+ 	/* Kick the control CPU into the TSC synchronization function */
+@@ -514,14 +564,43 @@
+ 	 * value is used. In the worst case the adjustment needs to go
+ 	 * through a 3rd run for fine tuning.
+ 	 */
+-	cur->adjusted += cur_max_warp;
++	if (boot_cpu_has(X86_FEATURE_TSC_ADJUST)) {
++		cur->adjusted += cur_max_warp;
+ 
+-	pr_warn("TSC ADJUST compensate: CPU%u observed %lld warp. Adjust: %lld\n",
+-		cpu, cur_max_warp, cur->adjusted);
++		pr_warn("TSC ADJUST compensate: CPU%u observed %lld warp. Adjust: %lld\n",
++			cpu, cur_max_warp, cur->adjusted);
+ 
+-	wrmsrq(MSR_IA32_TSC_ADJUST, cur->adjusted);
+-	goto retry;
++		wrmsrq(MSR_IA32_TSC_ADJUST, cur->adjusted);
++	} else
++	{
++		s64 w = (s64)cur_max_warp;
++
++		/* Refuse absurd corrections (> 10 s): fall back to old behaviour */
++		if (abs(w) > (s64)tsc_khz * 10000) {
++			pr_warn("TSC fixwarp: CPU%u warp %lld too large, not touching TSC\n",
++				cpu, w);
++			goto retry;
++		}
+ 
++		/* A big lag of the source CPU is fixed by the source itself */
++		if (w < 0 && -w > (s64)tsc_khz * 10 && num_online_cpus() == 1)
++			goto retry;
++
++		/*
++		 * wrmsr takes effect some cycles after rdtsc was sampled, so
++		 * each shift is short by ~L cycles. The residual seen after a
++		 * shift is that shortfall: learn it and add it to every
++		 * following shift (and to the first shift on the next CPUs).
++		 */
++		if (fix_iter++ > 0)
++			fixwarp_bias += w;
++
++		pr_warn("TSC fixwarp: CPU%u observed %lld warp, bias %lld, shifting TSC\n",
++			cpu, w, fixwarp_bias);
++		tsc_fixwarp_shift(w + fixwarp_bias);
++	}
++
++	goto retry;
+ }
+ 
+ #endif /* CONFIG_SMP */
