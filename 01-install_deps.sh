@@ -22,6 +22,7 @@ REQUIRED_PACKAGES=(
     openssl
     gcc-14-plugin-dev
     jq
+    gnupg2
 )
 
 # Dynamically inject linux-source into the dependency array if stock kernel is requested
